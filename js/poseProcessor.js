@@ -9,8 +9,6 @@ const MODEL_URL =
   "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
 const WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm";
 
-// BlazePose's 33-landmark indices for the joints we care about — mirrors
-// Core/Sources/PoseEstimation/Joint.swift's Vision joint mapping.
 const LANDMARK_INDEX = {
   nose: 0,
   leftShoulder: 11,
@@ -35,6 +33,72 @@ function getLandmarker() {
       const vision = await FilesetResolver.forVisionTasks(WASM_URL);
       return PoseLandmarker.createFromOptions(vision, {
         baseOptions: { modelAssetPath: MODEL_URL, delegate: "GPU" },
+        runningMode: "VIDEO",
+        numPoses: 1,
+      });
+    })();
+  }
+  return landmarkerPromise;
+}
+
+function seekVideo(videoEl, time) {
+  return new Promise((resolve) => {
+    if (Math.abs(videoEl.currentTime - time) < 0.001) {
+      resolve();
+      return;
+    }
+
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      videoEl.removeEventListener("seeked", finish);
+      clearTimeout(timer);
+      resolve();
+    };
+    videoEl.addEventListener("seeked", finish);
+    const timer = setTimeout(finish, 2000);
+    videoEl.currentTime = time;
+  });
+}
+
+export async function extractPoseFrames(videoEl, { fps = 20, onProgress } = {}) {
+  const landmarker = await getLandmarker();
+  const duration = videoEl.duration;
+  const frameInterval = 1 / fps;
+  const frames = [];
+
+  let t = 0;
+  while (t < duration) {
+    await seekVideo(videoEl, t);
+    const result = landmarker.detectForVideo(videoEl, performance.now());
+    const lm = result.landmarks && result.landmarks[0];
+    if (lm) {
+      const joints = {};
+      for (const [name, idx] of Object.entries(LANDMARK_INDEX)) {
+        const p = lm[idx];
+        if (p) joints[name] = { x: p.x, y: p.y, visibility: p.visibility ?? 1 };
+      }
+      if (joints.leftShoulder && joints.rightShoulder) {
+        joints.neck = {
+          x: (joints.leftShoulder.x + joints.rightShoulder.x) / 2,
+          y: (joints.leftShoulder.y + joints.rightShoulder.y) / 2,
+          visibility: Math.min(joints.leftShoulder.visibility, joints.rightShoulder.visibility),
+        };
+      }
+      frames.push({ timestamp: t, joints });
+    }
+    if (onProgress) onProgress(Math.min(1, t / duration));
+    t += frameInterval;
+  }
+
+  if (onProgress) onProgress(1);
+
+  return {
+    frames,
+    videoSize: { width: videoEl.videoWidth, height: videoEl.videoHeight },
+  };
+}        baseOptions: { modelAssetPath: MODEL_URL, delegate: "GPU" },
         runningMode: "VIDEO",
         numPoses: 1,
       });
