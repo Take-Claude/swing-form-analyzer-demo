@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>ゴルフスイング分析（体験版）</title>
+  <link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+  <header>
+    <h1>ゴルフスイング分析（体験版）</h1>
+    <p>
+      ブラウザ内で動画を解析します（サーバーには送信されません）。この体験版は保存機能はありません。
+      Xファクター・テンポ比・スイングプレーンなど、一般的なゴルフ理論をもとにした指標を計算します。
+      解析にはブラウザ上でのモデル読み込みが必要なため、初回は少し時間がかかります。
+    </p>
+    <p><a href="../">← 野球版はこちら</a></p>
+  </header>
+  <main>
+    <section id="candidate-slot" class="slot"></section>
+    <hr />
+    <section id="reference-slot" class="slot"></section>
+    <section id="comparison"></section>
+  </main>
+  <footer>骨格検出: MediaPipe Pose Landmarker（ブラウザ内で動作）</footer>
+  <script type="module" src="main.js"></script>
+</body>
+</html>
